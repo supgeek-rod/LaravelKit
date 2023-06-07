@@ -14,7 +14,9 @@ class MysqlToElasticSearch extends Command
      *
      * @var string
      */
-    protected $signature = 'ePartV2:mysql-to-elasticsearch';
+    protected $signature = 'ePartV2:mysql-to-elasticsearch
+                            {currentChunkSN : 当前块编号}
+                            {--perChunkSize=1000000 : 每块的数量}';
 
     /**
      * The console command description.
@@ -37,11 +39,18 @@ class MysqlToElasticSearch extends Command
      */
     public function handle()
     {
+        $currentChunkSN = $this->argument('currentChunkSN');
+        $perChunkSize = $this->option('perChunkSize');
+
         $startMicroTime = microtime(true);
         $currentMicroTime = microtime(true);
         $this->line(__METHOD__ . ' Start ...');
 
-        Part::query()->chunkById(1000, function ($parts) use ($startMicroTime, &$currentMicroTime) {
+        $beginPartId = $perChunkSize * ($currentChunkSN - 1) + 1;
+        $endPartId = $perChunkSize * $currentChunkSN;
+
+        Part::query()->whereBetween('id', [$beginPartId, $endPartId])
+            ->chunkById(1000, function ($parts) use ($startMicroTime, &$currentMicroTime) {
             $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
 
             foreach ($parts as $part) {
