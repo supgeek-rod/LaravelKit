@@ -51,7 +51,7 @@ class PartToElasticSearch extends Command
         $endPartId = $perChunkSize * $currentChunkSN;
 
         Part::query()->whereBetween('id', [$beginPartId, $endPartId])
-            ->chunkById(10, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
+            ->chunkById(100, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
             $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
 
             foreach ($parts as $part) {
