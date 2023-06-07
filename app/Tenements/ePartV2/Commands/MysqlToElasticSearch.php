@@ -4,6 +4,7 @@ namespace App\Tenements\ePartV2\Commands;
 
 use App\CommonSDK\ElasticSearch\ElasticSearch;
 use App\Tenements\ePartV2\Models\Part;
+use App\Tenements\ePartV2\Models\PartAttribute;
 use Illuminate\Console\Command;
 
 class MysqlToElasticSearch extends Command
@@ -40,31 +41,44 @@ class MysqlToElasticSearch extends Command
         $currentMicroTime = microtime(true);
         $this->line(__METHOD__ . ' Start ...');
 
-        foreach (Part::query()->lazyById(1000, column: 'id') as $part) {
-            try {
-                $response = $this->elasticSearch->client->index([
-                    'id'        =>  $part->id,
-                    'index'     =>  'parts',
-                    'body'      =>  $this->makePartBody($part),
-                ]);
+        Part::query()->chunkById(1000, function ($parts) use ($startMicroTime, &$currentMicroTime) {
+            $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
 
-                $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
-                $totalSeconds = round((microtime(true) - $startMicroTime), 3);
-                $message = $response->asObject()->result;
-                $this->line("PartID({$part->id}): {$message}; {$durationSeconds}s / {$totalSeconds}s;");
-            } catch (\Exception $exception) {
-                $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
-                $totalSeconds = round((microtime(true) - $startMicroTime), 3);
-                $this->error("PartID({$part->id}): {$durationSeconds}s / {$totalSeconds}s; ({$exception->getMessage()})");
+            foreach ($parts as $part) {
+                try {
+                    $response = $this->elasticSearch->client->index($params = [
+                        'id'        =>  $part->id,
+                        'index'     =>  'parts',
+                        'body'      =>  $this->makePartBody($part, $partAttributes),
+                    ]);
+
+                    $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
+                    $totalSeconds = round((microtime(true) - $startMicroTime), 3);
+                    $message = $response->asObject()->result;
+                    $this->line("PartID({$part->id}): {$message}; {$durationSeconds}s / {$totalSeconds}s;");
+                } catch (\Exception $exception) {
+                    $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
+                    $totalSeconds = round((microtime(true) - $startMicroTime), 3);
+
+                    $this->newLine()->error("PartID({$part->id}): {$durationSeconds}s / {$totalSeconds}s; ({$exception->getMessage()})");
+                    $this->newLine()->error("PartID({$part->id}): " . json_encode($params));
+                }
             }
-        }
+        });
     }
 
-    protected function makePartBody(Part $part)
+    /**
+     * Make part body
+     *
+     * @param Part $part
+     * @param $partAttributes
+     * @return array
+     */
+    protected function makePartBody(Part $part, $partAttributes)
     {
         $body = $part->toArray();
 
-        $body['attributes'] = $part->attributes->map(function ($item) {
+        $body['attributes'] = $partAttributes->where('part_id', $part->id)->map(function ($item) {
             return [
                 'name'      =>  $item->name,
                 'value'     =>  $item->value,
