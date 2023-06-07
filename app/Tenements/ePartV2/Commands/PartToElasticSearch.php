@@ -42,6 +42,7 @@ class PartToElasticSearch extends Command
         $currentChunkSN = $this->argument('currentChunkSN');
         $perChunkSize = $this->option('perChunkSize');
 
+        $partIndex = 0;
         $startMicroTime = microtime(true);
         $currentMicroTime = microtime(true);
         $this->line(__METHOD__ . ' Start ...');
@@ -50,7 +51,7 @@ class PartToElasticSearch extends Command
         $endPartId = $perChunkSize * $currentChunkSN;
 
         Part::query()->whereBetween('id', [$beginPartId, $endPartId])
-            ->chunkById(1000, function ($parts) use ($startMicroTime, &$currentMicroTime) {
+            ->chunkById(10, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
             $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
 
             foreach ($parts as $part) {
@@ -64,13 +65,13 @@ class PartToElasticSearch extends Command
                     $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
                     $totalSeconds = round((microtime(true) - $startMicroTime), 3);
                     $message = $response->asObject()->result;
-                    $this->line("PartID({$part->id}): {$message}; {$durationSeconds}s / {$totalSeconds}s;");
+                    $this->line('#' . ++$partIndex .  " PartID({$part->id}): {$message}; {$durationSeconds}s / {$totalSeconds}s;");
                 } catch (\Exception $exception) {
                     $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
                     $totalSeconds = round((microtime(true) - $startMicroTime), 3);
 
-                    $this->newLine()->error("PartID({$part->id}): {$durationSeconds}s / {$totalSeconds}s; ({$exception->getMessage()})");
-                    $this->newLine()->error("PartID({$part->id}): " . json_encode($params));
+                    $this->newLine()->error('#' . ++$partIndex .  " PartID({$part->id}): {$durationSeconds}s / {$totalSeconds}s; ({$exception->getMessage()})");
+                    $this->newLine()->error('#' . ++$partIndex .  " PartID({$part->id}): " . json_encode($params));
                 }
             }
         });
