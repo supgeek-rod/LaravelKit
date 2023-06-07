@@ -22,6 +22,8 @@ class Kernel extends ConsoleKernel
     {
         $this->load(__DIR__.'/Commands');
 
+        $this->load(app_path('Tenements/ePartV2/Commands'));
+
         require base_path('routes/console.php');
     }
 }
