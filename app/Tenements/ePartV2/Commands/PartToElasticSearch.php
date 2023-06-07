@@ -7,14 +7,14 @@ use App\Tenements\ePartV2\Models\Part;
 use App\Tenements\ePartV2\Models\PartAttribute;
 use Illuminate\Console\Command;
 
-class MysqlToElasticSearch extends Command
+class PartToElasticSearch extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'ePartV2:mysql-to-elasticsearch
+    protected $signature = 'ePartV2:part-to-elasticsearch
                             {currentChunkSN : 当前块编号}
                             {--perChunkSize=1000000 : 每块的数量}';
 
@@ -23,7 +23,7 @@ class MysqlToElasticSearch extends Command
      *
      * @var string
      */
-    protected $description = 'ePartV2 mysql data to Elasticsearch';
+    protected $description = 'ePartV2 Part* data to Elasticsearch';
 
     protected $elasticSearch;
 
