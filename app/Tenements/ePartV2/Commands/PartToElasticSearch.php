@@ -27,6 +27,8 @@ class PartToElasticSearch extends Command
 
     protected $elasticSearch;
 
+    protected $elasticSearchIndexName = 'parts-v2';
+
     public function __construct()
     {
         parent::__construct();
@@ -51,14 +53,14 @@ class PartToElasticSearch extends Command
         $endPartId = $perChunkSize * $currentChunkSN;
 
         Part::query()->whereBetween('id', [$beginPartId, $endPartId])
-            ->chunkById(100, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
+            ->chunkById(20, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
             $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
 
             foreach ($parts as $part) {
                 try {
                     $response = $this->elasticSearch->client->index($params = [
                         'id'        =>  $part->id,
-                        'index'     =>  'parts',
+                        'index'     =>  $this->elasticSearchIndexName,
                         'body'      =>  $this->makePartBody($part, $partAttributes),
                     ]);
 
@@ -88,12 +90,16 @@ class PartToElasticSearch extends Command
     {
         $body = $part->toArray();
 
+        $body['attributes'] = $partAttributes->where('part_id', $part->id)->pluck('value', 'name')->toArray();
+
+        /*
         $body['attributes'] = $partAttributes->where('part_id', $part->id)->map(function ($item) {
             return [
                 'name'      =>  $item->name,
                 'value'     =>  $item->value,
             ];
         })->toArray();
+        */
 
         return $body;
     }
