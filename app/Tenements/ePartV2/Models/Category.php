@@ -51,6 +51,14 @@ class Category extends Model
     }
 
     /**
+     * Relate: PartAttribute
+     */
+    public function attributes()
+    {
+        return $this->hasManyThrough(PartAttribute::class, Part::class, 'category_id', 'part_id', 'id', 'id');
+    }
+
+    /**
      * Attr: 层级分类
      */
     public function getHierarchiesAttribute()

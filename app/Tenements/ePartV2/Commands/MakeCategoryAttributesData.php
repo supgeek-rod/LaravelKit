@@ -30,52 +30,66 @@ class MakeCategoryAttributesData extends Command
      */
     public function handle()
     {
+        DB::listen(function ($query) {
+            // $this->warn("SQL({$query->time}ms): {$query->sql}");
+        });
+
         $this->line('## Start ' . __METHOD__);
 
-        $categoryIds = Category::query()->whereHas('parts')->pluck('id');
-
-        foreach ($categoryIds as $index => $categoryId) {
+        foreach (($categories = Category::query()->whereHas('parts')->get()) as $index => $category) {
+            $this->newLine()->line('#' . $index + 1 . '/' . $categories->count() . "({$category->id}) : Started");
             $startTime = microtime(true);
 
-            $data = $this->getCategoryAttributes($categoryId);
-            $data = collect($data)->map(function ($item, $key) use ($categoryId) {
-                return [
-                    'category_id'       =>  $categoryId,
-                    'name'              =>  $key,
-                    'values'            =>  json_encode($item),
-                ];
-            })->values()->toArray();
+            try {
+                $categoryAttributes = $this->getCategoryAttributes($category);
+                $this->saveCategoryAttributes($category, $categoryAttributes);
 
-            CategoryAttribute::insert($data);
-
-            $this->newLine()->line('#' . $index + 1 . '/' . count($categoryIds) . ' duration: ' . round((microtime(true) - $startTime), 3) . 's');
-            $this->line("CategoryID({$categoryId}) has " . count($data) . ' attributes');
+                $this->line('#' . $index + 1 . '/' . $categories->count() . ' duration: ' . round((microtime(true) - $startTime), 3) . 's');
+                $this->line("CategoryID({$category->id}) has " . count($categoryAttributes) . ' attributes');
+            } catch (\Exception $exception) {
+                $this->error('#' . $index + 1 . '/' . $categories->count() . ' has error');
+                // $this->error($exception->getMessage());
+            }
         }
     }
 
     /**
+     * 保存 CategoryAttributes
      */
-    protected function getCategoryAttributes($categoryId)
+    protected function saveCategoryAttributes($category, $data)
     {
-        $partIds = Part::query()->where('category_id', $categoryId)->pluck('id');
+        $data = collect($data)->map(function ($item, $key) use ($category) {
+            return [
+                'category_id'       =>  $category->id,
+                'name'              =>  $key,
+                'values'            =>  json_encode($item),
+            ];
+        })->values()->toArray();
 
-        if ($partIds) {
-            $partAttributes = PartAttribute::query()
-                ->select('name', 'value')
-                ->whereIn('part_id', $partIds)
-                ->get();
+        return CategoryAttribute::insert($data);
+    }
 
+    /**
+     * 获取 CategoryAttributes
+     */
+    protected function getCategoryAttributes($category)
+    {
+        $partAttributes = $category->attributes;
+
+        if ($partAttributes->isNotEmpty()) {
             // 去重
             $partAttributes = $partAttributes->uniqueStrict(function ($item) {
                 return $item['name'] . '-' . $item['value'];
             });
 
             // 二维数组提取成一维数组
-            return $partAttributes->reduce(function ($carry, $item) use ($categoryId) {
+            return $partAttributes->reduce(function ($carry, $item) {
                 $carry[$item->name][] = $item['value'];
 
                 return $carry;
             }, []);
         }
+
+        return [];
     }
 }
