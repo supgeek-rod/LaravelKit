@@ -19,6 +19,8 @@ return new class extends Migration
             $table->json('values')->comment('Attr values');
 
             $table->timestamps();
+
+            $table->unique(['category_id', 'name']);
         });
     }
 
