@@ -44,13 +44,13 @@ class MakeCategoryAttributesData extends Command
     public function handle()
     {
         $categoryId = $this->argument('category');
-        $categoryQuery = Category::query()->select('id', 'name')->whereHas('parts')->withCount('parts')->orderBy('id');
+        $categoryQuery = Category::query()->select('id', 'name')->whereHas('parts')->withCount('parts')->orderBy('parts_count');
 
         // 如果 category = all, 则进行队列分发
         if ($categoryId === 'all') {
             foreach ($categoryQuery->get() as $category) {
-                // Artisan::queue("ePartV2:make-category-attributes-data {$category->id}");
-                $this->executeHandler($category);
+                Artisan::queue("ePartV2:make-category-attributes-data {$category->id}");
+                // $this->executeHandler($category);
             }
         }
 
