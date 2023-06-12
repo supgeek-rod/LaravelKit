@@ -93,6 +93,37 @@ class MakeCategoryAttributesData extends Command
     }
 
     /**
+     * 获取 CategoryAttributes
+     */
+    protected function getCategoryAttributes($category)
+    {
+        $chunkSize = 10000;
+        $result = [];
+
+        $category->attributes()->select('part_attributes.id', 'name', 'value')->chunk($chunkSize, function ($categoryAttributes) use (&$result) {
+            $this->line('## Has ' . count($categoryAttributes) . ' attributes');
+            $startTime = microtime(true);
+
+            // 去重
+            $categoryAttributes = $categoryAttributes->uniqueStrict(function ($item) {
+                return $item['name'] . '-' . $item['value'];
+            });
+
+            // 二维数组提取成一维数组
+            $result = $categoryAttributes->reduce(function ($result, $item) {
+                $result[$item->name][] = $item['value'];
+
+                return $result;
+            }, $result);
+
+            $this->line('-- Duration: ' . round((microtime(true) - $startTime), 3) . 's');
+            $this->line('-- Usage memory ' . round(memory_get_usage() / 1024 / 1024) . 'MB');
+        });
+
+        return $result;
+    }
+
+    /**
      * 保存 CategoryAttributes
      */
     protected function saveCategoryAttributes($category, $data)
@@ -107,32 +138,5 @@ class MakeCategoryAttributesData extends Command
 
         CategoryAttribute::where('category_id', $category->id)->delete();
         return CategoryAttribute::insert($data);
-    }
-
-    /**
-     * 获取 CategoryAttributes
-     */
-    protected function getCategoryAttributes($category)
-    {
-        $chunkSize = 10000;
-        $result = [];
-
-        $category->attributes()->select('part_attributes.id', 'name', 'value')->chunk($chunkSize, function ($categoryAttributes) use (&$result) {
-            $this->line('Has ' . count($categoryAttributes) . ' attributes');
-
-            // 去重
-            $categoryAttributes = $categoryAttributes->uniqueStrict(function ($item) {
-                return $item['name'] . '-' . $item['value'];
-            });
-
-            // 二维数组提取成一维数组
-            $result = $categoryAttributes->reduce(function ($result, $item) {
-                $result[$item->name][] = $item['value'];
-
-                return $result;
-            }, $result);
-        });
-
-        return $result;
     }
 }
