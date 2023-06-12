@@ -16,7 +16,8 @@ class MakeCategoryAttributesData extends Command
      *
      * @var string
      */
-    protected $signature = 'ePartV2:make-category-attributes-data';
+    protected $signature = 'ePartV2:make-category-attributes-data
+                           {category=all : 分类 ID，默认为全部}';
 
     /**
      * The console command description.
@@ -25,29 +26,42 @@ class MakeCategoryAttributesData extends Command
      */
     protected $description = 'ePartV2 Part* data to Elasticsearch';
 
+    public function __construct()
+    {
+        parent::__construct();
+
+        if (false) {
+            DB::listen(function ($query) {
+                $this->warn("SQL({$query->time}ms): {$query->sql}");
+            });
+        }
+    }
+
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        DB::listen(function ($query) {
-            // $this->warn("SQL({$query->time}ms): {$query->sql}");
-        });
-
         $this->line('## Start ' . __METHOD__);
 
-        foreach (($categories = Category::query()->whereHas('parts')->get()) as $index => $category) {
-            $this->newLine()->line('#' . $index + 1 . '/' . $categories->count() . "({$category->id}) : Started");
+        $categoryId = $this->argument('category');
+        $categoryQuery = Category::query()->select('id')->whereHas('parts')->orderBy('id');
+        if ($categoryId !== 'all') {
+            $categoryQuery->where('id', $categoryId);
+        }
+
+        foreach (($categories = $categoryQuery->get()) as $index => $category) {
+            $this->newLine()->line('#' . $index + 1 . '/' . $categories->count() . "({$category->id}): Start");
             $startTime = microtime(true);
 
             try {
                 $categoryAttributes = $this->getCategoryAttributes($category);
-                $this->saveCategoryAttributes($category, $categoryAttributes);
+                // $this->saveCategoryAttributes($category, $categoryAttributes);
 
-                $this->line('#' . $index + 1 . '/' . $categories->count() . ' duration: ' . round((microtime(true) - $startTime), 3) . 's');
-                $this->line("CategoryID({$category->id}) has " . count($categoryAttributes) . ' attributes');
+                $this->line('Duration: ' . round((microtime(true) - $startTime), 3) . 's');
+                $this->line('Has ' . count($categoryAttributes) . ' distinct attributes');
             } catch (\Exception $exception) {
-                $this->error('#' . $index + 1 . '/' . $categories->count() . ' has error');
+                $this->error('Has error');
                 // $this->error($exception->getMessage());
             }
 
@@ -76,17 +90,18 @@ class MakeCategoryAttributesData extends Command
      */
     protected function getCategoryAttributes($category)
     {
-        $partAttributes = $category->attributes()->select('name', 'value')->get();
+        $categoryAttributes = $category->attributes()->select('name', 'value')->get();
+        $this->line('Has ' . count($categoryAttributes) . ' attributes');
         unset($category->attributes);
 
-        if ($partAttributes->isNotEmpty()) {
+        if ($categoryAttributes->isNotEmpty()) {
             // 去重
-            $partAttributes = $partAttributes->uniqueStrict(function ($item) {
+            $categoryAttributes = $categoryAttributes->uniqueStrict(function ($item) {
                 return $item['name'] . '-' . $item['value'];
             });
 
             // 二维数组提取成一维数组
-            return $partAttributes->reduce(function ($carry, $item) {
+            return $categoryAttributes->reduce(function ($carry, $item) {
                 $carry[$item->name][] = $item['value'];
 
                 return $carry;
