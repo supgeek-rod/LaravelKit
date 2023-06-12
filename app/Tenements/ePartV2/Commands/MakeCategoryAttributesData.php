@@ -44,7 +44,7 @@ class MakeCategoryAttributesData extends Command
     public function handle()
     {
         $categoryId = $this->argument('category');
-        $categoryQuery = Category::query()->select('id', 'name')->whereHas('parts')->withCount('parts')->orderBy('parts_count');
+        $categoryQuery = Category::query()->select('id', 'name')->whereHas('parts')->withCount('parts')->orderByDesc('parts_count');
 
         // 如果 category = all, 则进行队列分发
         if ($categoryId === 'all') {
@@ -100,9 +100,9 @@ class MakeCategoryAttributesData extends Command
         $chunkSize = 10000;
         $result = [];
 
-        $category->attributes()->select('part_attributes.id', 'name', 'value')->chunk($chunkSize, function ($categoryAttributes) use (&$result) {
+        $startTime = microtime(true);
+        $category->attributes()->select('part_attributes.id', 'name', 'value')->chunk($chunkSize, function ($categoryAttributes) use (&$result, &$startTime) {
             $this->line('## Has ' . count($categoryAttributes) . ' attributes');
-            $startTime = microtime(true);
 
             // 去重
             $categoryAttributes = $categoryAttributes->uniqueStrict(function ($item) {
@@ -116,7 +116,7 @@ class MakeCategoryAttributesData extends Command
                 return $result;
             }, $result);
 
-            $this->line('-- Duration: ' . round((microtime(true) - $startTime), 3) . 's');
+            $this->line('-- Duration: ' . round($startTime - ($startTime = (microtime(true))), 3) . 's');
             $this->line('-- Usage memory ' . round(memory_get_usage() / 1024 / 1024) . 'MB');
         });
 
