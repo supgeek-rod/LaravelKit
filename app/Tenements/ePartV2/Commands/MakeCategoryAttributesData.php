@@ -32,7 +32,7 @@ class MakeCategoryAttributesData extends Command
 
         if (false) {
             DB::listen(function ($query) {
-                $this->warn("SQL({$query->time}ms): {$query->sql}");
+                $this->warn("SQL({$query->time}ms): {$query->sql}; " . json_encode($query->bindings));
             });
         }
     }
@@ -45,13 +45,15 @@ class MakeCategoryAttributesData extends Command
         $this->line('## Start ' . __METHOD__);
 
         $categoryId = $this->argument('category');
-        $categoryQuery = Category::query()->select('id')->whereHas('parts')->orderBy('id');
+        $categoryQuery = Category::query()->select('id', 'name')->whereHas('parts')->withCount('parts')->orderBy('id');
         if ($categoryId !== 'all') {
             $categoryQuery->where('id', $categoryId);
         }
 
         foreach (($categories = $categoryQuery->get()) as $index => $category) {
-            $this->newLine()->line('#' . $index + 1 . '/' . $categories->count() . "({$category->id}): Start");
+            $this->newLine()->line('#' . $index + 1 . '/' . $categories->count() . " [{$category->name}]({$category->id}): Start");
+            $this->line('Has ' . $category->parts_count . ' parts');
+
             $startTime = microtime(true);
 
             try {
@@ -62,7 +64,7 @@ class MakeCategoryAttributesData extends Command
                 $this->line('Has ' . count($categoryAttributes) . ' distinct attributes');
             } catch (\Exception $exception) {
                 $this->error('Has error');
-                // $this->error($exception->getMessage());
+                $this->error($exception->getMessage());
             }
 
             $this->line('Usage memory ' . round(memory_get_usage() / 1024 / 1024) . 'MB');
@@ -82,6 +84,7 @@ class MakeCategoryAttributesData extends Command
             ];
         })->values()->toArray();
 
+        CategoryAttribute::where('category_id', $category->id)->delete();
         return CategoryAttribute::insert($data);
     }
 
@@ -90,24 +93,25 @@ class MakeCategoryAttributesData extends Command
      */
     protected function getCategoryAttributes($category)
     {
-        $categoryAttributes = $category->attributes()->select('name', 'value')->get();
-        $this->line('Has ' . count($categoryAttributes) . ' attributes');
-        unset($category->attributes);
+        $chunkSize = 10000;
+        $result = [];
 
-        if ($categoryAttributes->isNotEmpty()) {
+        $category->attributes()->select('part_attributes.id', 'name', 'value')->chunk($chunkSize, function ($categoryAttributes) use (&$result) {
+            $this->line('Has ' . count($categoryAttributes) . ' attributes');
+
             // 去重
             $categoryAttributes = $categoryAttributes->uniqueStrict(function ($item) {
                 return $item['name'] . '-' . $item['value'];
             });
 
             // 二维数组提取成一维数组
-            return $categoryAttributes->reduce(function ($carry, $item) {
-                $carry[$item->name][] = $item['value'];
+            $result = $categoryAttributes->reduce(function ($result, $item) {
+                $result[$item->name][] = $item['value'];
 
-                return $carry;
-            }, []);
-        }
+                return $result;
+            }, $result);
+        });
 
-        return [];
+        return $result;
     }
 }
