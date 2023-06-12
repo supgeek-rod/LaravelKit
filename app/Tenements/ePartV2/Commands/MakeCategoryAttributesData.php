@@ -50,6 +50,8 @@ class MakeCategoryAttributesData extends Command
                 $this->error('#' . $index + 1 . '/' . $categories->count() . ' has error');
                 // $this->error($exception->getMessage());
             }
+
+            $this->line('Usage memory ' . round(memory_get_usage() / 1024 / 1024) . 'MB');
         }
     }
 
@@ -74,7 +76,8 @@ class MakeCategoryAttributesData extends Command
      */
     protected function getCategoryAttributes($category)
     {
-        $partAttributes = $category->attributes;
+        $partAttributes = $category->attributes()->select('name', 'value')->get();
+        unset($category->attributes);
 
         if ($partAttributes->isNotEmpty()) {
             // 去重
