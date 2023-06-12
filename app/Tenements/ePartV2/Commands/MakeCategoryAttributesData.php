@@ -116,7 +116,7 @@ class MakeCategoryAttributesData extends Command
                 return $result;
             }, $result);
 
-            $this->line('-- Duration: ' . round($startTime - ($startTime = (microtime(true))), 3) . 's');
+            $this->line('-- Duration: ' . round(floatval($startTime) - ($startTime = (microtime(true))), 3) . 's');
             $this->line('-- Usage memory ' . round(memory_get_usage() / 1024 / 1024) . 'MB');
         });
 
