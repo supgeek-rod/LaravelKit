@@ -15,6 +15,7 @@ class PartToElasticSearch extends Command
      * @var string
      */
     protected $signature = 'ePartV2:part-to-elasticsearch
+                            {indexName : ES 索引名称}
                             {currentChunkSN : 当前块编号}
                             {--perChunkSize=1000000 : 每块的数量}';
 
@@ -27,7 +28,9 @@ class PartToElasticSearch extends Command
 
     protected $elasticSearch;
 
-    protected $elasticSearchIndexName = 'parts-v2';
+    protected $elasticSearchIndexName;
+
+    protected $chunkSize = 100;
 
     public function __construct()
     {
@@ -41,6 +44,7 @@ class PartToElasticSearch extends Command
      */
     public function handle()
     {
+        $this->elasticSearchIndexName = $this->argument('indexName');
         $currentChunkSN = $this->argument('currentChunkSN');
         $perChunkSize = $this->option('perChunkSize');
 
@@ -53,8 +57,10 @@ class PartToElasticSearch extends Command
         $endPartId = $perChunkSize * $currentChunkSN;
 
         Part::query()->whereBetween('id', [$beginPartId, $endPartId])
-            ->chunkById(20, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
+            ->chunkById($this->chunkSize, function ($parts) use ($startMicroTime, &$currentMicroTime, &$partIndex) {
             $partAttributes = PartAttribute::whereIn('part_id', $parts->pluck('id')->toArray())->orderBy('id', 'asc')->get();
+
+            $partIndex++;
 
             foreach ($parts as $part) {
                 try {
@@ -63,19 +69,14 @@ class PartToElasticSearch extends Command
                         'index'     =>  $this->elasticSearchIndexName,
                         'body'      =>  $this->makePartBody($part, $partAttributes),
                     ]);
-
-                    $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
-                    $totalSeconds = round((microtime(true) - $startMicroTime), 3);
-                    $message = $response->asObject()->result;
-                    $this->line('#' . ++$partIndex .  " PartID({$part->id}): {$message}; {$durationSeconds}s / {$totalSeconds}s;");
                 } catch (\Exception $exception) {
-                    $durationSeconds = round((float) $currentMicroTime - ($currentMicroTime = microtime(true)), 3);
-                    $totalSeconds = round((microtime(true) - $startMicroTime), 3);
-
-                    $this->newLine()->error('#' . ++$partIndex .  " PartID({$part->id}): {$durationSeconds}s / {$totalSeconds}s; ({$exception->getMessage()})");
-                    $this->newLine()->error('#' . ++$partIndex .  " PartID({$part->id}): " . json_encode($params));
+                    $this->error("#{$partIndex} - ({$part->id}) HasError: {$exception->getMessage()}");
                 }
             }
+
+            $durationSeconds = 0 - round(((float) $currentMicroTime) - ($currentMicroTime = microtime(true)), 3);
+            $totalSeconds = round((microtime(true) - $startMicroTime), 3);
+            $this->line("#{$partIndex} Done; {$durationSeconds}s / {$totalSeconds}s;");
         });
     }
 
