@@ -2,11 +2,14 @@
 
 namespace App\CommonSDK\ElasticSearch;
 
+use App\CommonSDK\ElasticSearch\Requests\PartFilterRequest;
 use Elastica\Client;
 use Elastica\Document;
 
 class ElasticSearch
 {
+    use PartFilterRequest;
+
     public Client $client;
 
     public static function init()
