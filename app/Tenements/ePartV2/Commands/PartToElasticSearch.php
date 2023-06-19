@@ -91,16 +91,14 @@ class PartToElasticSearch extends Command
     {
         $body = $part->toArray();
 
-        $body['attributes'] = $partAttributes->where('part_id', $part->id)->pluck('value', 'name')->toArray();
+        // $body['attributes'] = $partAttributes->where('part_id', $part->id)->pluck('value', 'name')->toArray();
 
-        /*
         $body['attributes'] = $partAttributes->where('part_id', $part->id)->map(function ($item) {
             return [
                 'name'      =>  $item->name,
                 'value'     =>  $item->value,
             ];
-        })->toArray();
-        */
+        })->values();
 
         return $body;
     }

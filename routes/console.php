@@ -17,3 +17,8 @@ use Illuminate\Support\Facades\Artisan;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+
+Artisan::command('dev', function () {
+    App\Tenements\ePartV2\Jobs\PartsToElasticSearchJob::dispatchSync('parts_v2', 1, 180000000, 100);
+})->purpose('dev ~');
