@@ -21,9 +21,22 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 //
 //
-Route::prefix('elasticsearch')->group(function () {
-    Route::get('parts/attributes', function () {
-        $r = \App\CommonSDK\ElasticSearch\ElasticSearch::init()->getPartAttributes();
-        dd($r);
-    });
+Route::get('es/filter-parts', function () {
+    $categoryId = 278;
+    $codeString = null;
+    $codeString = 'FDC63';
+
+    $partFilterRequest = new \App\CommonSDK\ElasticSearch\PartFilter\Request('parts_v2', $categoryId, $codeString);
+
+    return $partFilterRequest->getParts();
+});
+
+Route::get('es/filter-parts/attributes', function () {
+    $categoryId = 278;
+    $codeString = null;
+    $codeString = 'FDC63';
+
+    $partFilterRequest = new \App\CommonSDK\ElasticSearch\PartFilter\Request('parts_v2', $categoryId, $codeString);
+
+    return $partFilterRequest->getAttributes();
 });
