@@ -5,8 +5,6 @@ namespace App\CommonSDK\ElasticSearch\PartFilter;
 use App\CommonSDK\ElasticSearch\ElasticSearch;
 use Elastica\Aggregation;
 use Elastica\Query;
-use Elastica\ResultSet;
-use Elastica\Search;
 
 class Request extends ElasticSearch
 {
@@ -126,6 +124,15 @@ class Request extends ElasticSearch
             ->addShould(new Query\MatchQuery('code', $this->codeString))
             ->addShould(new Query\Wildcard('code.keyword', $this->codeString . '*'))
         );
+
+        // attributes
+        $this->attributes['Mfr'] = 'onsemi';
+        $attributeQuery = new Query\BoolQuery();
+        foreach ($this->attributes as $attributeName => $attributeValue) {
+            $attributeQuery->addMust(new Query\Term(['attributes.name.keyword' => $attributeName]));
+            $attributeQuery->addMust(new Query\Term(['attributes.value.keyword' => $attributeValue]));
+        }
+        $mainQuery->addMust((new Query\Nested())->setPath('attributes')->setQuery($attributeQuery));
 
         $this->query->setQuery($mainQuery);
     }
