@@ -19,6 +19,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 
-Artisan::command('dev', function () {
-    App\Tenements\ePartV2\Jobs\PartsToElasticSearchJob::dispatchSync('parts_v2', 1, 180000000, 100);
-})->purpose('dev ~');
+Artisan::command('parts-to-elasticsearch', function () {
+    App\Tenements\ePartV2\Jobs\PartsToElasticSearchJob::dispatchSync('parts', 1, 180000000, 100);
+})->purpose('PartsToElasticSearchJob');
