@@ -1,19 +1,45 @@
 <?php
 
-$startTime = microtime(true);
+define('START_TIME', microtime(true));
 
-$filename = '/mnt/s/Databases/db_epart_v2/digikey_all_data.json';
-$filename = '/mnt/s/num.txt';
-$lineNumber = 100 * 100000;
+function createFiberCurlRequest($url)
+{
+    $fiber = new Fiber(function () use ($url) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-$file = new SplFileObject($filename);
-$file->seek($lineNumber - 1);
+        $response = curl_exec($ch);
 
-$targetLine = $file->current();
+        curl_close($ch);
+        echo round((microtime(true) - START_TIME), 2) . 'S' . PHP_EOL;
 
-echo $targetLine;
+        Fiber::suspend();
 
-echo PHP_EOL . PHP_EOL;
+        echo PHP_EOL . PHP_EOL . '[FIBER] ' . $url;
+        var_dump($response);
+        echo PHP_EOL;
+    });
 
-echo round(microtime(true) - $startTime, 2) . 's' . PHP_EOL;
-echo round((memory_get_usage() / 1024 / 1024), 2) . 'MB' . PHP_EOL;
+    $fiber->start();
+
+    return $fiber->resume();
+}
+
+
+
+$urls = [
+    'https://api.inreon.net/part_detail?id=17282315',
+    'https://api.inreon.net/part_detail?id=17282329',
+    'https://api.inreon.net/part_detail?id=17282313',
+];
+$fibers = [];
+
+
+$fiber = createFiberCurlRequest($urls[0]);
+var_dump($fiber);
+
+echo round((microtime(true) - START_TIME), 2) . 'S' . PHP_EOL;
+
+foreach ($urls as $url) {
+    // $fibers[] = createFiberCurlRequest($url);
+}
