@@ -2,25 +2,40 @@
 
 namespace App\CommonSDK\ElasticSearch;
 
-use App\CommonSDK\ElasticSearch\Requests\PartFilterRequest;
-use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientBuilder;
+use Elastica\Aggregation;
+use Elastica\Client;
+use Elastica\Document;
+use Elastica\Query;
+use Elastica\ResultSet;
+use Elastica\Search;
 
 class ElasticSearch
 {
-    use PartFilterRequest;
-
     public Client $client;
+    public Search $search;
+    public Query $query;
+
+    public function __construct()
+    {
+        $this->client = new Client([
+            'host'      =>  'localhost',
+            'part'      =>  9200,
+            'username'  =>  'elastic',
+            'password'  =>  'pnX8iCS1ckMb6gFSXc1T',
+        ]);
+
+        $this->search = new Search($this->client);
+
+        $this->query = new Query();
+    }
 
     public static function init()
     {
-        $thisInstance = new self();
+        return new self();
+    }
 
-        $thisInstance->client = ClientBuilder::create()
-            ->setBasicAuthentication('elastic', 'pnX8iCS1ckMb6gFSXc1T')
-            ->setHosts(['localhost:9200'])
-            ->build();
-
-        return $thisInstance;
+    public function makeDocument($id, $data)
+    {
+        return new Document($id, $data);
     }
 }
